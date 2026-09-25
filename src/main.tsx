@@ -218,6 +218,13 @@ function Assistant({items}:{items:Property[]}){
     if(!nextProfile.purpose){
       return{text:"Are you buying a home, comparing a few options, or just exploring?"};
     }
+    if(browseIntent){
+      const browsePool=items.filter(p=>p.status==="available").slice(0,4);
+      return{
+        text:"Absolutely. I’ll show you a few available residences first, and you can narrow the search afterward.",
+        propertySlugs:browsePool.map(p=>p.slug)
+      };
+    }
     if(nextProfile.budgetMax===null&&nextProfile.monthlyMax===null){
       return{text:"What budget feels comfortable — a total purchase price or a monthly payment target?"};
     }
