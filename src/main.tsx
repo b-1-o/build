@@ -416,15 +416,14 @@ function PropertyPage({p}:{p:Property}){
   return <div className="detailPage"><button className="backLink" onClick={()=>go("/properties")}><ArrowLeft size={15}/> Back to residences</button><section className="detailHero"><Gallery p={p}/><div className="detailCopy"><p className="eyebrow dark">{p.type.toUpperCase()} · {p.city.toUpperCase()}</p><h1>{p.name}</h1><p className="location"><MapPin size={14}/>{p.location}</p><strong className="detailPrice">{money(p.price)}</strong><p className="detailDesc">{p.description}</p><div className="propertySpecs large"><span><BedDouble/>{p.bedrooms} beds</span><span><Bath/>{p.bathrooms} baths</span><span><Maximize/>{p.area.toLocaleString()} sq ft</span></div><div className="featureList">{p.features.map(f=><span key={f}><Check size={13}/>{f}</span>)}</div>{p.status==="available"&&<button className="solid" onClick={()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth"})}>Schedule private viewing <CalendarDays size={15}/></button>}</div></section><section className="detailLower"><div><p className="eyebrow dark">OWNERSHIP PLANNING</p><h2>Plan the purchase<br/><em>with clear numbers.</em></h2><Mortgage price={p.price}/></div><div className="detailAside"><p className="eyebrow dark">PROPERTY NOTES</p><h3>Designed for daily life.</h3><p>Every Northline residence is presented with a full gallery, specifications and private viewing workflow.</p><div className="miniFacts"><span><Building2 size={14}/>Built {p.year}</span><span><HomeIcon size={14}/>{p.type==="house"?"Private house":"Apartment residence"}</span><span><Layers3 size={14}/>Full specification set</span></div></div></section>{p.status==="available"&&<section id="booking" className="bookingSection"><div><p className="eyebrow">PRIVATE VIEWING</p><h2>Choose a time<br/><em>that works for you.</em></h2><p>This is a portfolio demo reservation flow. No payment is collected.</p></div><Booking p={p} onReserve={reserve}/></section>}</div>
 }
 
-function ReservationStatusPage({demo=false}:{demo?:boolean}){
+function ReservationStatusPage(){
   const params=new URLSearchParams(location.search);
   const propertyId=params.get("propertyId");
   const bookingDate=params.get("bookingDate");
   const bookingTime=params.get("bookingTime");
   const p=properties.find(x=>x.id===propertyId);
-  return <div className="statusPage"><p className="eyebrow dark">NORTHLINE / PRIVATE VIEWING</p><div className="statusIcon">✓</div><h1>Viewing confirmed</h1><p>Your demo viewing request has been recorded. No card details are required.</p><div className="receiptCard"><div className="receiptCard"><div><span>Residence</span><strong>{p?.name||"Northline residence"}</strong></div><div><span>Viewing</span><strong>{bookingDate||"—"} · {bookingTime||"—"}</strong></div><div><span>Location</span><strong>{p?.location||p?.city||"California"}</strong></div><div><span>Status</span><strong>REQUEST CONFIRMED</strong></div></div></>:<p>This page is only used for the demo reservation flow.</p>}<LinkButton to={p?"/property/"+p.slug:"/properties"} className="solid">Return to Northline <ArrowUpRight size={16}/></LinkButton></div>
+  return <div className="statusPage"><p className="eyebrow dark">NORTHLINE / PRIVATE VIEWING</p><div className="statusIcon">✓</div><h1>Viewing confirmed</h1><p>Your demo viewing request has been recorded. No card details are required.</p><div className="receiptCard"><div><span>Residence</span><strong>{p?.name||"Northline residence"}</strong></div><div><span>Viewing</span><strong>{bookingDate||"—"} · {bookingTime||"—"}</strong></div><div><span>Location</span><strong>{p?.location||p?.city||"California"}</strong></div><div><span>Status</span><strong>REQUEST CONFIRMED</strong></div></div><LinkButton to={p?"/property/"+p.slug:"/properties"} className="solid">Return to Northline <ArrowUpRight size={16}/></LinkButton></div>
 }
-
 function AppRouter(){
   const[path,setPath]=useState(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/"),[items,setItems]=useState<Property[]>(properties);
   useEffect(()=>{const h=()=>setPath(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/");addEventListener("popstate",h);return()=>removeEventListener("popstate",h)},[]);
@@ -436,8 +435,7 @@ function AppRouter(){
   else if(path==="/about")page=<AboutPage/>;
   else if(path==="/contact")page=<ContactPage items={items}/>;
   else if(path==="/viewing/confirmed")page=<ReservationStatusPage demo={new URLSearchParams(location.search).get("demo")==="1"}/>;
-  else if(path==="/viewing/cancel")page=<ReservationStatusPage/>;
-  else if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);page=p?<PropertyPage p={p}/>:<StatusPage cancel/>}
+  else if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);page=p?<PropertyPage p={p}/>:<ReservationStatusPage/>}
   else page=<ReservationStatusPage/>;
   const shell=path.startsWith("/viewing/")||path.startsWith("/property/");
   return <><AnimatePresence mode="wait"><motion.div key={path} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.28}}>{shell?null:<Header/>}{page}{shell?null:<Footer/>}</motion.div></AnimatePresence>{!shell&&<Assistant items={items}/>}</>
