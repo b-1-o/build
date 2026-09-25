@@ -22,6 +22,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   if(property.status!=="available")return res.status(409).json({error:"This residence is not currently available"});
   if(!bookingDate||!bookingTime)return res.status(400).json({error:"Select a viewing date and time"});
   if(!process.env.STRIPE_SECRET_KEY)return res.status(503).json({error:"Stripe is not configured. Add STRIPE_SECRET_KEY in Vercel."});
+  if(!process.env.STRIPE_SECRET_KEY.startsWith("sk_test_"))return res.status(503).json({error:"Stripe backend is configured for test mode only. Use a Stripe test secret key."});
   try{
     const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
     const base=SITE_URL.replace(/\/$/,"");
