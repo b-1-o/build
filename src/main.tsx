@@ -168,7 +168,7 @@ function Assistant({items}:{items:Property[]}){
       type,
       minBedrooms,
       budgetMax:monthly?null:budgetMax,
-      monthlyMax:monthly?monthlyMax:monthlyMax
+      monthlyMax
     };
     setProfile(nextProfile);
 
@@ -198,7 +198,7 @@ function Assistant({items}:{items:Property[]}){
         };
       }
       return{
-        text:`${named.name}: ${money(named.price)}, ${named.city}, ${named.bedrooms} beds, ${named.bathrooms} baths, ${named.area.toLocaleString()} sq ft. ${named.status==="available"?"It is currently available.":"It is currently "+named.status+".}"`,
+        text:`${named.name}: ${money(named.price)}, ${named.city}, ${named.bedrooms} beds, ${named.bathrooms} baths, ${named.area.toLocaleString()} sq ft. ${named.status==="available"?"It is currently available.":"It is currently "+named.status+"."}`,
         propertySlugs:[named.slug]
       };
     }
