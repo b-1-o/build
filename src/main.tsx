@@ -140,31 +140,100 @@ function Assistant({items}:{items:Property[]}){
   };
 
   const localFallback=(text:string)=>{
+    type LocalResult={text:string;propertySlugs?:string[];mortgage?:Msg["mortgage"]};
     const q=normalizeText(text);
-    const purpose:AssistantProfile["purpose"]=/(куп|buy|покуп)/i.test(text)?"buy":/(срав|compare)/i.test(text)?"compare":/(исслед|explor|посмотр|browse)/i.test(text)?"explore":profile.purpose;
-    const monthly=/\b(per month|monthly|a month|в месяц|месяц)\b/i.test(text);
     const parsed=parseBudget(text);
+    const explicitMonthly=/\b(per month|monthly|a month|\/mo|в месяц|месяц)\b/i.test(text);
+    const numericOnly=/^\s*\$?\s*[\d,]+(?:\.\d+)?\s*(?:m|million|mln|k|thousand)?\s*$/i.test(text);
+    const inferMonthly=numericOnly&&parsed!==null&&parsed<100000&&!profile.budgetMax;
+    const monthly=explicitMonthly||inferMonthly;
+    const purpose:AssistantProfile["purpose"]=/(куп|buy|покуп)/i.test(text)?"buy":/(срав|compare)/i.test(text)?"compare":/(исслед|explor|browse|просто посмотреть)/i.test(text)?"explore":profile.purpose;
+    const cityNames=["Los Angeles","San Francisco","Malibu","Palm Springs","West Hollywood","Laguna Beach","San Diego","La Jolla","Oakland"];
+    const city=cityNames.find(c=>q.includes(c.toLowerCase()))||profile.city;
+    const type:AssistantProfile["type"]=/(apartment|квартир)/i.test(text)?"apartment":/(house|home|дом|коттедж)/i.test(text)?"house":profile.type;
+    const bedMatch=text.match(/(\d+)\s*(bed|beds|bedroom|bedrooms|спаль)/i);
+    const minBedrooms=bedMatch?Number(bedMatch[1]):profile.minBedrooms;
 
-    if(purpose!==profile.purpose)setProfile(p=>({...p,purpose}));
-    if(monthly&&parsed)setProfile(p=>({...p,monthlyMax:parsed,budgetMax:null}));
-    if(!monthly&&parsed&&parsed>100000)setProfile(p=>({...p,budgetMax:parsed}));
+    let budgetMax=profile.budgetMax;
+    let monthlyMax=profile.monthlyMax;
+    if(parsed!==null){
+      if(monthly)monthlyMax=parsed;
+      else if(parsed>=100000)budgetMax=parsed;
+    }
 
-    if(!purpose)return"Are you buying a home, comparing a few residences, or just exploring?";
-    if(!profile.budgetMax&&!profile.monthlyMax&&!parsed)return"What budget are you comfortable with — total purchase price or a monthly payment target?";
-    if(!profile.city&&!(q.includes("los angeles")||q.includes("san francisco")||q.includes("malibu")||q.includes("palm springs")||q.includes("west hollywood")||q.includes("laguna")||q.includes("san diego")||q.includes("la jolla")||q.includes("oakland")))return"Which area should I prioritize: Los Angeles, coastal California, or are you open to any city?";
-    if(!profile.type&&!/(house|home|дом|квартир|apartment)/i.test(text))return"Do you prefer a private house, an apartment, or either?";
-    if(!profile.minBedrooms&&!/(\d+)\s*(bed|beds|bedroom|спаль)/i.test(text))return"How many bedrooms do you need at minimum?";
+    const nextProfile:AssistantProfile={
+      ...profile,
+      purpose,
+      city,
+      type,
+      minBedrooms,
+      budgetMax:monthly?null:budgetMax,
+      monthlyMax:monthly?monthlyMax:monthlyMax
+    };
+    setProfile(nextProfile);
 
-    const targetBudget=profile.budgetMax||((parsed&&!monthly)?parsed:null);
+    const named=items.find(p=>{
+      const name=normalizeText(p.name);
+      const slug=normalizeText(p.slug.replace(/-/g," "));
+      return q.includes(name)||q.includes(slug);
+    });
+
+    if(named){
+      if(/\b(open|открой|покажи|детал|details|page|страниц)/i.test(text)){
+        return{text:`Opening ${named.name} for you.`,propertySlugs:[named.slug]};
+      }
+      if(/\b(ипотек|payment|monthly|месяч)/i.test(text)){
+        const monthlyValue=Math.round(monthlyPayment(named.price));
+        return{
+          text:`${named.name} is ${money(named.price)} in ${named.city}. At 20% down, 6.25% and 30 years, the estimated principal-and-interest payment is ${money(monthlyValue)}/month.`,
+          propertySlugs:[named.slug],
+          mortgage:{homePrice:named.price,downPercent:20,rate:6.25,years:30,monthly:monthlyValue}
+        };
+      }
+      if(/\b(визит|viewing|просмотр|посмотр|когда|date|дата|available|свобод)/i.test(text)){
+        const n=nextViewing(named);
+        return{
+          text:n?`${named.name} is currently ${named.status}. The next demo viewing is ${n.label} at ${n.time}.`:`${named.name} is not currently available for a viewing.`,
+          propertySlugs:[named.slug]
+        };
+      }
+      return{
+        text:`${named.name}: ${money(named.price)}, ${named.city}, ${named.bedrooms} beds, ${named.bathrooms} baths, ${named.area.toLocaleString()} sq ft. ${named.status==="available"?"It is currently available.":"It is currently "+named.status+".}"`,
+        propertySlugs:[named.slug]
+      };
+    }
+
+    if(!nextProfile.purpose){
+      return{text:"Are you buying a home, comparing a few options, or just exploring?"};
+    }
+    if(nextProfile.budgetMax===null&&nextProfile.monthlyMax===null){
+      return{text:"What budget feels comfortable — a total purchase price or a monthly payment target?"};
+    }
+    if(!nextProfile.city){
+      return{text:"Which area should I prioritize: Los Angeles, coastal California, or are you open to any city?"};
+    }
+    if(!nextProfile.type){
+      return{text:"Do you prefer a private house, an apartment, or either?"};
+    }
+    if(nextProfile.minBedrooms===null){
+      return{text:"How many bedrooms do you need at minimum?"};
+    }
+
     let pool=items.filter(p=>p.status==="available");
-    if(targetBudget)pool=pool.filter(p=>p.price<=targetBudget);
-    const minBeds=profile.minBedrooms;
-    const city=profile.city;
-    if(profile.type)pool=pool.filter(p=>p.type===profile.type);
-    if(minBeds!==null)pool=pool.filter(p=>p.bedrooms>=minBeds);
-    if(city)pool=pool.filter(p=>p.city.toLowerCase().includes(city.toLowerCase()));
-    if(!pool.length)return"I don't have an available residence that fits all of those constraints. We can widen the area, increase the budget, or relax the bedroom requirement.";
-    addBot(`I found ${pool.length} options that fit what you've told me so far. The strongest matches are below. Tell me which one feels closest, and I’ll take you into the full residence page.`,pool.slice(0,4).map(p=>p.slug));
+    if(nextProfile.budgetMax!==null)pool=pool.filter(p=>p.price<=nextProfile.budgetMax!);
+    if(nextProfile.monthlyMax!==null)pool=pool.filter(p=>monthlyPayment(p.price)<=nextProfile.monthlyMax!);
+    if(nextProfile.type&&nextProfile.type!=="any")pool=pool.filter(p=>p.type===nextProfile.type);
+    if(nextProfile.minBedrooms!==null)pool=pool.filter(p=>p.bedrooms>=nextProfile.minBedrooms!);
+    if(nextProfile.city)pool=pool.filter(p=>p.city.toLowerCase().includes(nextProfile.city!.toLowerCase()));
+
+    if(!pool.length){
+      return{text:"I’m not seeing an available residence that fits all of those constraints. We can widen the area, increase the budget, or relax the bedroom requirement."};
+    }
+
+    return{
+      text:`I found ${pool.length} available residence${pool.length===1?"":"s"} that fit your search. These are the closest matches — open one and I’ll take you into its full page.`,
+      propertySlugs:pool.slice(0,4).map(p=>p.slug)
+    };
   };
 
   const ask=async(raw:string)=>{
@@ -193,7 +262,7 @@ function Assistant({items}:{items:Property[]}){
       }
     }else{
       const fallback=localFallback(text);
-      if(typeof fallback==="string"&&fallback.trim())addBot(fallback);
+      if(fallback?.text)addBot(fallback.text,fallback.propertySlugs,fallback.mortgage);
     }
     setBusy(false);
   };
