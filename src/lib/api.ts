@@ -69,8 +69,7 @@ export async function sendAssistantMessage(payload:{
   profile:AssistantProfile;
   now:string;
 }):Promise<AssistantResponse>{
-  const remote=import.meta.env.VITE_AI_API_URL?.trim();
-  if(STATIC_DEMO&&!remote)return{ok:false,fallback:true};
+  const remote=(import.meta.env.VITE_AI_API_URL?.trim()||"https://northline-development-erikghabuzyan6-maxs-projects.vercel.app").trim();
   try{
     const endpoint=remote?remote.replace(/\/$/,"")+"/api/chat":"/api/chat";
     const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
