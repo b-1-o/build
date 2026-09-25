@@ -20,16 +20,19 @@ export async function sendInquiry(payload:Record<string,string>){
   return data;
 }
 
+const REMOTE_API=(import.meta.env.VITE_API_BASE_URL?.trim()||"https://northline-ai-erikghabuzyan6-maxs-projects.vercel.app").replace(/\/$/,"");
+
 export async function createCheckoutSession(propertyId:string,bookingDate:string,bookingTime:string){
-  if(STATIC_DEMO)return{demo:true,demoPath:`/checkout/demo?propertyId=${encodeURIComponent(propertyId)}&date=${encodeURIComponent(bookingDate)}&time=${encodeURIComponent(bookingTime)}`};
-  const r=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({propertyId,bookingDate,bookingTime})});
+  const endpoint=STATIC_DEMO?REMOTE_API+"/api/create-checkout-session":"/api/create-checkout-session";
+  const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({propertyId,bookingDate,bookingTime})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(data.error||"Checkout is not configured");
   return data;
 }
 
 export async function getCheckoutSession(sessionId:string){
-  const r=await fetch("/api/checkout-session?session_id="+encodeURIComponent(sessionId));
+  const endpoint=STATIC_DEMO?REMOTE_API+"/api/checkout-session?session_id=":"/api/checkout-session?session_id=";
+  const r=await fetch(endpoint+encodeURIComponent(sessionId));
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(data.error||"Unable to verify checkout");
   return data;
