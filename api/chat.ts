@@ -1,4 +1,6 @@
 import type{VercelRequest,VercelResponse}from"@vercel/node";
+import{generateText,Output}from"ai";
+import{z}from"zod";
 import{properties}from"../src/data/properties";
 
 type ChatMessage={role:"user"|"assistant";content:string};
@@ -36,46 +38,30 @@ const maxPriceFromMonthly=(monthlyMax:number,down=20,rate=6.25,years=30)=>{
   return loan/(1-down/100);
 };
 
-const responseSchema={
-  type:"object",
-  additionalProperties:false,
-  properties:{
-    message:{type:"string"},
-    question:{type:["string","null"]},
-    action:{type:"string",enum:["none","open_property","browse_properties","open_viewing"]},
-    navigateTo:{type:["string","null"]},
-    propertySlugs:{type:"array",items:{type:"string"}},
-    profile:{
-      type:"object",
-      additionalProperties:false,
-      properties:{
-        budgetMax:{type:["number","null"]},
-        monthlyMax:{type:["number","null"]},
-        city:{type:["string","null"]},
-        type:{type:["string","null"],enum:["house","apartment","any",null]},
-        minBedrooms:{type:["number","null"]},
-        purpose:{type:["string","null"],enum:["buy","compare","view","explore",null]},
-        features:{type:"array",items:{type:"string"}},
-        timeline:{type:["string","null"]}
-      },
-      required:["budgetMax","monthlyMax","city","type","minBedrooms","purpose","features","timeline"]
-    },
-    mortgage:{
-      type:"object",
-      additionalProperties:false,
-      properties:{
-        homePrice:{type:["number","null"]},
-        downPercent:{type:["number","null"]},
-        rate:{type:["number","null"]},
-        years:{type:["number","null"]},
-        monthly:{type:["number","null"]}
-      },
-      required:["homePrice","downPercent","rate","years","monthly"]
-    }
-  },
-  required:["message","question","action","navigateTo","propertySlugs","profile","mortgage"]
-};
-
+const responseSchema=z.object({
+  message:z.string(),
+  question:z.string().nullable(),
+  action:z.enum(["none","open_property","browse_properties","open_viewing"]),
+  navigateTo:z.string().nullable(),
+  propertySlugs:z.array(z.string()).max(4),
+  profile:z.object({
+    budgetMax:z.number().nullable(),
+    monthlyMax:z.number().nullable(),
+    city:z.string().nullable(),
+    type:z.enum(["house","apartment","any"]).nullable(),
+    minBedrooms:z.number().nullable(),
+    purpose:z.enum(["buy","compare","view","explore"]).nullable(),
+    features:z.array(z.string()).max(8),
+    timeline:z.string().nullable()
+  }),
+  mortgage:z.object({
+    homePrice:z.number().nullable(),
+    downPercent:z.number().nullable(),
+    rate:z.number().nullable(),
+    years:z.number().nullable(),
+    monthly:z.number().nullable()
+  })
+});
 export default async function handler(req:VercelRequest,res:VercelResponse){
   const origin=req.headers.origin||"";
   const allowedOrigin=origin==="https://b-1-o.github.io"||origin.endsWith(".vercel.app")?origin:"https://b-1-o.github.io";
@@ -85,7 +71,6 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   res.setHeader("Access-Control-Allow-Methods","POST, OPTIONS");
   if(req.method==="OPTIONS")return res.status(204).end();
   if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
-  if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:"AI assistant is not configured. Add OPENAI_API_KEY in Vercel."});
 
   const body=req.body||{};
   const messages=Array.isArray(body.messages)?body.messages.slice(-16):[];
@@ -138,53 +123,32 @@ When calculating a mortgage, put the chosen home's exact price in mortgage.homeP
   ];
 
   try{
-    const response=await fetch("https://api.openai.com/v1/responses",{
-      method:"POST",
-      headers:{
-        "Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        model:process.env.OPENAI_MODEL||"gpt-5.6-sol",
-        input,
-        reasoning:{effort:"medium"},
-        max_output_tokens:900,
-        store:false,
-        text:{
-          format:{
-            type:"json_schema",
-            name:"northline_concierge",
-            strict:true,
-            schema:responseSchema
-          }
-        }
-      })
+    const result=await generateText({
+      model:process.env.OPENAI_MODEL||"openai/gpt-5.5",
+      system,
+      messages:messages.map((m:ChatMessage)=>({role:m.role,content:m.content})),
+      output:Output.object({schema:responseSchema}),
+      maxOutputTokens:900
     });
 
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)return res.status(502).json({error:data?.error?.message||"AI assistant request failed"});
-
-    const raw=outputText(data);
-    let result:any;
-    try{result=JSON.parse(raw)}catch{return res.status(502).json({error:"AI assistant returned invalid structured output"})}
-
+    const structured=result.output;
     const validSlugs=new Set(properties.map(p=>p.slug));
-    result.propertySlugs=Array.isArray(result.propertySlugs)?result.propertySlugs.filter((slug:string)=>validSlugs.has(slug)).slice(0,4):[];
+    structured.propertySlugs=structured.propertySlugs.filter((slug:string)=>validSlugs.has(slug)).slice(0,4);
 
-    if(result.mortgage?.homePrice&&result.mortgage?.downPercent&&result.mortgage?.rate&&result.mortgage?.years){
-      result.mortgage.monthly=Math.round(estimateMonthly(
-        Number(result.mortgage.homePrice),
-        Number(result.mortgage.downPercent),
-        Number(result.mortgage.rate),
-        Number(result.mortgage.years)
+    if(structured.mortgage.homePrice&&structured.mortgage.downPercent&&structured.mortgage.rate&&structured.mortgage.years){
+      structured.mortgage.monthly=Math.round(estimateMonthly(
+        Number(structured.mortgage.homePrice),
+        Number(structured.mortgage.downPercent),
+        Number(structured.mortgage.rate),
+        Number(structured.mortgage.years)
       ));
     }
 
-    if(result.profile?.monthlyMax&&result.profile.monthlyMax>0&&!result.profile.budgetMax){
-      result.profile.estimatedPurchaseCeiling=Math.round(maxPriceFromMonthly(result.profile.monthlyMax));
-    }
-
-    return res.status(200).json({ok:true,...result});
+    return res.status(200).json({ok:true,...structured});
+  }catch{
+    return res.status(502).json({error:"Unable to reach the AI assistant"});
+  }
+}
   }catch{
     return res.status(502).json({error:"Unable to reach the AI assistant"});
   }
