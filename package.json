@@ -1,7 +1,7 @@
 {
   "name": "northline-development",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vercel/analytics": "latest",
     "@vercel/node": "latest",
     "@vitejs/plugin-react": "latest",
     "framer-motion": "latest",
