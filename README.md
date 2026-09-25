@@ -1,25 +1,51 @@
 # Northline Development
 
-Premium real-estate / construction company demo built with React + TypeScript and Vite.
+Premium real-estate / construction company portfolio demo built with React + TypeScript + Vite.
 
-## Included
-- Responsive premium real-estate UI
-- Property catalog with search, type and budget filters
-- Property detail modal with specifications and features
+## Five core pages
+- Home
+- Properties
+- Projects
+- About
+- Contact
+
+Additional routes:
+- /property/:slug — full property detail
+- /checkout/demo — static checkout preview for GitHub Pages
+- /checkout/success
+- /checkout/cancel
+
+## Features
+- Responsive desktop + mobile layouts
+- Property catalog with search, type, status and budget filters
+- 10 houses and apartments with galleries and specifications
 - Mortgage payment calculator
-- Property API endpoint: /api/properties
-- Inquiry API with Resend support: /api/contact
-- Stripe test checkout for private viewing deposits: /api/create-checkout-session
-- Environment variable template
-- Vercel-ready configuration
-- Lazy-loaded imagery and responsive layout
+- Google Maps reference embed
+- Private viewing calendar
+- Stripe Test Mode Checkout through Vercel serverless API
+- Checkout verification and success/cancel states
+- Resend inquiry API
+- Responsive support widget
+- Framer Motion transitions
+- GitHub Pages static preview
+- Vercel-ready production deployment
 
 ## Run
-npm install
-npm run dev
+`npm install`
+`npm run dev`
 
-## Production
-Copy .env.example to .env and configure Stripe and Resend values. Never expose STRIPE_SECRET_KEY in client-side code.
+## Real Stripe test checkout
+Deploy the repo to Vercel and add:
+`STRIPE_SECRET_KEY`
+`SITE_URL` (optional when Vercel provides the request host)
+`RESEND_API_KEY`
+`CONTACT_TO_EMAIL`
+`CONTACT_FROM_EMAIL`
+
+The Stripe secret key stays server-side in Vercel environment variables. GitHub Pages intentionally uses a visual demo checkout because static hosting cannot run the /api serverless functions.
+
+## Public preview
+https://b-1-o.github.io/build/
 
 ## Deployment
-Recommended: Vercel for the Vite frontend plus serverless API routes. GitHub Pages can host the static frontend, but payment/contact API routes require a serverless backend such as Vercel.
+GitHub Pages is useful for the static portfolio preview. Vercel is the deployment target for the full React + serverless API + Stripe Test Mode flow.
