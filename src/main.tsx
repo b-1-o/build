@@ -192,7 +192,8 @@ function Assistant({items}:{items:Property[]}){
         window.setTimeout(()=>{setOpen(false);go(ai.navigateTo!);window.setTimeout(()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth"}),500)},450);
       }
     }else{
-      localFallback(text);
+      const fallback=localFallback(text);
+      if(typeof fallback==="string"&&fallback.trim())addBot(fallback);
     }
     setBusy(false);
   };
