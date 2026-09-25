@@ -9,12 +9,12 @@ import"./styles.css";
 const BASE=import.meta.env.BASE_URL.replace(/\/$/,"");
 const STATIC_DEMO=BASE!=="/";
 const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-const go=(path:string)=>{window.history.pushState({}, "", BASE+path);window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo({top:0,behavior:"instant"})};
+const go=(path:string)=>{window.history.pushState({}, "", BASE+path);window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo({top:0,behavior:"auto"})};
 
 const nav=[["/","Home"],["/properties","Properties"],["/projects","Projects"],["/about","About"],["/contact","Contact"]] as const;
 
-function LinkButton({to,children,className=""}:{to:string;children:React.ReactNode;className?:string}){
-  return <a className={className} href={BASE+to} onClick={e=>{e.preventDefault();go(to)}}>{children}</a>
+function LinkButton({to,children,className="",onClick}:{to:string;children:React.ReactNode;className?:string;onClick?:()=>void}){
+  return <a className={className} href={BASE+to} onClick={e=>{e.preventDefault();onClick?.();go(to)}}>{children}</a>
 }
 
 function Header(){
