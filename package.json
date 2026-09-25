@@ -17,7 +17,9 @@
     "react-dom": "latest",
     "stripe": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "ai": "latest",
+    "zod": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",
