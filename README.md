@@ -11,9 +11,6 @@ Premium real-estate / construction company portfolio demo built with React + Typ
 
 Additional routes:
 - /property/:slug — full property detail
-- /checkout/demo — static checkout preview for GitHub Pages
-- /checkout/success
-- /checkout/cancel
 
 ## Features
 - Responsive desktop + mobile layouts
@@ -22,8 +19,8 @@ Additional routes:
 - Mortgage payment calculator
 - Google Maps reference embed
 - Private viewing calendar
-- Stripe Test Mode Checkout through Vercel serverless API
-- Checkout verification and success/cancel states
+- Demo private-viewing reservation flow
+- Viewing confirmation state
 - Resend inquiry API
 - Responsive support widget
 - Framer Motion transitions
@@ -34,18 +31,12 @@ Additional routes:
 `npm install`
 `npm run dev`
 
-## Real Stripe test checkout
-Deploy the repo to Vercel and add:
-`STRIPE_SECRET_KEY`
-`SITE_URL` (optional when Vercel provides the request host)
-`RESEND_API_KEY`
-`CONTACT_TO_EMAIL`
-`CONTACT_FROM_EMAIL`
+## Demo reservation
 
-The Stripe secret key stays server-side in Vercel environment variables. GitHub Pages intentionally uses a visual demo checkout because static hosting cannot run the /api serverless functions.
+The private-viewing flow is a portfolio mock: visitors choose a date and time and receive a confirmation page. No card details or payment provider are used.
 
 ## Public preview
 https://b-1-o.github.io/build/
 
 ## Deployment
-GitHub Pages is useful for the static portfolio preview. Vercel is the deployment target for the full React + serverless API + Stripe Test Mode flow.
+GitHub Pages is useful for the static portfolio preview. Vercel can host the full React + serverless API project, while the viewing reservation remains a demo flow.
