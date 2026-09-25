@@ -12,7 +12,12 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     return res.status(200).json({
       status:session.status,
       payment_status:session.payment_status,
+      amount_total:session.amount_total,
+      currency:session.currency,
+      customer_email:session.customer_details?.email||null,
+      customer_name:session.customer_details?.name||null,
       propertyId:session.metadata?.propertyId||null,
+      propertyName:session.metadata?.propertyName||null,
       bookingDate:session.metadata?.bookingDate||null,
       bookingTime:session.metadata?.bookingTime||null
     });
