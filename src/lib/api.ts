@@ -20,7 +20,7 @@ export async function sendInquiry(payload:Record<string,string>){
   return data;
 }
 
-const REMOTE_API=(import.meta.env.VITE_API_BASE_URL?.trim()||"https://northline-ai-erikghabuzyan6-maxs-projects.vercel.app").replace(/\/$/,"");
+const REMOTE_API=(import.meta.env.VITE_API_BASE_URL?.trim()||"https://northline-42tttd373-erikghabuzyan6-maxs-projects.vercel.app").replace(/\/$/,"");
 
 export async function createCheckoutSession(propertyId:string,bookingDate:string,bookingTime:string){
   const endpoint=STATIC_DEMO?REMOTE_API+"/api/create-checkout-session":"/api/create-checkout-session";
