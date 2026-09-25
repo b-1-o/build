@@ -11,6 +11,46 @@ const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency
 const img=(id:string)=>`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1800&q=88`;
 const go=(path:string)=>{window.history.pushState({}, "", BASE+path);window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo({top:0,behavior:"auto"})};
 
+const VIEWING_SLOTS=["10:00 AM","11:30 AM","1:00 PM","2:30 PM","4:00 PM"];
+const normalizeText=(value:string)=>value.toLowerCase().replace(/[^a-z0-9а-яё]+/gi," ").trim();
+const monthlyPayment=(price:number,down=20,rate=6.25,years=30)=>{
+  const loan=price*(1-down/100),monthly=rate/1200,n=years*12;
+  return monthly?loan*monthly*Math.pow(1+monthly,n)/(Math.pow(1+monthly,n)-1):loan/n;
+};
+const nextViewing=(p?:Property)=>{
+  if(p?.status!=="available")return null;
+  const now=new Date();
+  const currentMinutes=now.getHours()*60+now.getMinutes();
+  for(let offset=0;offset<21;offset++){
+    const d=new Date(now);
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate()+offset);
+    const weekday=d.getDay();
+    if(weekday===0||weekday===6)continue;
+    for(const slot of VIEWING_SLOTS){
+      const [raw,period]=slot.split(" ");
+      let [h,m]=raw.split(":").map(Number);
+      if(period==="PM"&&h!==12)h+=12;
+      if(period==="AM"&&h===12)h=0;
+      if(offset===0&&h*60+m<=currentMinutes)continue;
+      return{
+        iso:d.toISOString().slice(0,10),
+        label:d.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"}),
+        time:slot
+      };
+    }
+  }
+  return null;
+};
+const parseBudget=(text:string)=>{
+  const match=text.match(/\$?\s*(\d+(?:[.,]\d+)?)\s*(m|million|mln|k|thousand)?/i);
+  if(!match)return null;
+  const value=Number(match[1].replace(",",".")),unit=(match[2]||"").toLowerCase();
+  if(unit==="m"||unit==="million"||unit==="mln")return value*1_000_000;
+  if(unit==="k"||unit==="thousand")return value*1_000;
+  return null;
+};
+
 const nav=[["/","Home"],["/properties","Properties"],["/projects","Projects"],["/about","About"],["/contact","Contact"]] as const;
 
 function LinkButton({to,children,className="",onClick}:{to:string;children:React.ReactNode;className?:string;onClick?:()=>void}){
@@ -69,9 +109,104 @@ function MapPanel(){
   return <div className="mapPanel"><iframe title="Downtown Los Angeles map reference" loading="lazy" src="https://www.google.com/maps?q=555+W+5th+St,+Los+Angeles,+CA+90013&output=embed"/><div className="mapCaption"><div><p className="eyebrow dark">MAP REFERENCE</p><strong>Downtown Los Angeles</strong><span>555 W 5th St · Los Angeles, CA 90013</span></div><a href={mapsUrl} target="_blank" rel="noreferrer">Open in Google Maps <ArrowUpRight size={14}/></a></div></div>
 }
 
-function Support(){
-  const[open,setOpen]=useState(false);
-  return <><button className="supportBubble" aria-label="Open support" onClick={()=>setOpen(v=>!v)}>{open?<X size={17}/>:<MessageCircle size={17}/>}</button>{open&&<motion.aside className="supportPanel" initial={{opacity:0,y:12,scale:.98}} animate={{opacity:1,y:0,scale:1}}><p className="eyebrow dark">NORTHLINE / SUPPORT</p><h3>Need a hand?</h3><p>For viewing questions, availability, or development inquiries, send a message and the team will follow up.</p><div className="supportLinks"><LinkButton to="/contact">Contact team <ArrowUpRight size={14}/></LinkButton><a href="mailto:support@northline.demo">Email support <Mail size={14}/></a></div><div className="faq"><span><b>Are viewing payments refundable?</b> The demo uses a fixed $50 test deposit. Confirm live terms before launch.</span><span><b>Where does payment happen?</b> On Stripe's secure hosted checkout page.</span></div></motion.aside>}</>
+function Assistant({items}:{items:Property[]}){
+  type Msg={id:number;side:"bot"|"user";text:string;properties?:Property[]};
+  const[open,setOpen]=useState(false),[draft,setDraft]=useState("");
+  const[messages,setMessages]=useState<Msg[]>([{id:1,side:"bot",text:"Hi — I’m the Northline assistant. I can show available residences, calculate an estimated monthly payment, or find the nearest viewing day."}]);
+  const[messageId,setMessageId]=useState(2);
+
+  const addBot=(text:string,properties?:Property[])=>{
+    setMessages(prev=>[...prev,{id:messageId,side:"bot",text,properties}]);
+    setMessageId(v=>v+1);
+  };
+  const addUser=(text:string)=>{
+    setMessages(prev=>[...prev,{id:messageId,side:"user",text}]);
+    setMessageId(v=>v+1);
+  };
+
+  const showAvailability=(candidate?:Property)=>{
+    const p=candidate||items.filter(x=>x.status==="available").sort((a,b)=>a.price-b.price)[0];
+    if(!p){
+      addBot("There are no residences currently marked available.");
+      return;
+    }
+    const next=nextViewing(p);
+    addBot(next
+      ? `${p.name} is available. The nearest viewing slot is ${next.label} at ${next.time}. You can open the residence and reserve it from the viewing section.`
+      : `${p.name} is available, but I could not find a viewing slot in the current demo schedule.`,
+      [p]
+    );
+  };
+
+  const run=(raw:string)=>{
+    const text=raw.trim();
+    if(!text)return;
+    addUser(text);
+    const q=normalizeText(text);
+    const matched=items.find(p=>{
+      const name=normalizeText(p.name);
+      return q.includes(name)||q.includes(normalizeText(p.slug).replace(/-/g," "));
+    });
+
+    const wantsPayment=/(ипотек|платеж|месяч|monthly|mortgage|payment|down payment|первонач)/i.test(text);
+    const wantsDate=/(свобод|визит|просмотр|посмотр|дата|когда|availability|available|viewing)/i.test(text);
+    const wantsList=/(покаж|покажи|найд|ищу|дом|дома|квартир|residence|house|houses|apartment|apartments|show|find)/i.test(text);
+
+    if(wantsPayment){
+      const target=matched||items.filter(x=>x.status==="available").sort((a,b)=>a.price-b.price)[0];
+      if(!target){
+        addBot("I don’t have an available residence to calculate right now.");
+        return;
+      }
+      const budget=parseBudget(text);
+      const price=budget&&matched?matched.price:target.price;
+      const actual=budget&&matched?matched:target;
+      addBot(`For ${actual.name} at ${money(price)}, a 20% down payment and 6.25% / 30-year term gives an estimated ${money(Math.round(monthlyPayment(price)))} per month for principal and interest. Taxes, insurance and HOA are not included.`,[actual]);
+      return;
+    }
+
+    if(wantsDate){
+      showAvailability(matched);
+      return;
+    }
+
+    if(wantsList){
+      const type=q.includes("квартир")||q.includes("apartment")?"apartment":q.includes("дом")||q.includes("house")?"house":null;
+      const budget=parseBudget(text);
+      const filtered=items.filter(p=>p.status==="available"&&(type===null||p.type===type)&&(budget===null||p.price<=budget));
+      if(!filtered.length){
+        addBot("I couldn’t find an available residence matching those filters. Try a higher budget, another city, or ask for all available homes.");
+      }else{
+        addBot(`I found ${filtered.length} available residence${filtered.length===1?"":"s"} that fit the request. Tap one to open its details.`,filtered.slice(0,4));
+      }
+      return;
+    }
+
+    if(matched){
+      const next=nextViewing(matched);
+      addBot(next
+        ? `${matched.name} is currently marked ${matched.status}. The nearest available viewing slot is ${next.label} at ${next.time}.`
+        : `${matched.name} is currently marked ${matched.status}. There is no viewing slot in the current demo schedule.`,
+        [matched]
+      );
+      return;
+    }
+
+    addBot("Try “show houses under $1.5M”, “nearest viewing day”, or “monthly payment for The Oak Residence”.");
+  };
+
+  const submit=(e:React.FormEvent)=>{
+    e.preventDefault();
+    const text=draft;
+    setDraft("");
+    run(text);
+  };
+
+  const quick=(label:string,command:string)=>{
+    run(command);
+  };
+
+  return <><button className="assistantBubble" aria-label="Open Northline assistant" onClick={()=>setOpen(v=>!v)}>{open?<X size={18}/>:<MessageCircle size={18}/>}</button>{open&&<motion.aside className="assistantPanel" initial={{opacity:0,y:14,scale:.98}} animate={{opacity:1,y:0,scale:1}}><div className="assistantHead"><div><p className="eyebrow dark">NORTHLINE / ASSISTANT</p><h3>Property concierge</h3><span>Availability · payments · viewings</span></div><button aria-label="Close assistant" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="assistantQuick">{[["Nearest viewing","nearest viewing day"],["Available homes","show available homes"],["Monthly payment","monthly payment"]].map(([label,command])=><button key={label} onClick={()=>quick(label,command)}>{label}</button>)}</div><div className="assistantMessages">{messages.map(m=><div className={m.side==="user"?"assistantMsg user":"assistantMsg"} key={m.id}><p>{m.text}</p>{m.properties&&<div className="assistantProperties">{m.properties.map(p=><button key={p.id} onClick={()=>{setOpen(false);go("/property/"+p.slug)}}><img src={p.image} alt=""/><span><strong>{p.name}</strong><small>{p.city} · {money(p.price)}</small></span><ArrowUpRight size={14}/></button>)}</div>}</div>)}</div><form className="assistantInput" onSubmit={submit}><input aria-label="Message Northline assistant" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Ask about a home, payment or visit…"/><button aria-label="Send message" disabled={!draft.trim()}><ArrowUpRight size={16}/></button></form><p className="assistantNote">Availability is based on the current Northline demo schedule.</p></motion.aside>}</>
 }
 
 function PropertyCarousel({items}:{items:Property[]}){
@@ -219,7 +354,7 @@ function AppRouter(){
   else if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);page=p?<PropertyPage p={p}/>:<StatusPage cancel/>}
   else page=<StatusPage cancel/>;
   const shell=path.startsWith("/checkout")||path.startsWith("/property/")||path==="/checkout/cancel";
-  return <><AnimatePresence mode="wait"><motion.div key={path} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.28}}>{shell?null:<Header/>}{page}{shell?null:<Footer/>}</motion.div></AnimatePresence>{!shell&&<Support/>}</>
+  return <><AnimatePresence mode="wait"><motion.div key={path} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.28}}>{shell?null:<Header/>}{page}{shell?null:<Footer/>}</motion.div></AnimatePresence>{!shell&&<Assistant items={items}/>}</>
 }
 
 createRoot(document.getElementById("root")!).render(<AppRouter/>);
