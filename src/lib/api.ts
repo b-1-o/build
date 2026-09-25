@@ -34,3 +34,19 @@ export async function getCheckoutSession(sessionId:string){
   if(!r.ok)throw new Error(data.error||"Unable to verify checkout");
   return data;
 }
+
+export async function sendAssistantMessage(payload:{
+  messages:{role:"user"|"assistant";content:string}[];
+  properties:Property[];
+  now:string;
+}):Promise<{ok:boolean;reply?:string;fallback?:boolean}>{
+  if(STATIC_DEMO)return{ok:false,fallback:true};
+  try{
+    const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)return{ok:false,fallback:true};
+    return data;
+  }catch{
+    return{ok:false,fallback:true};
+  }
+}
