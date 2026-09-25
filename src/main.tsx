@@ -10,7 +10,7 @@ import{inject}from"@vercel/analytics";
 import"./styles.css";
 
 const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-const fade={initial:{opacity:0,y:22},whileInView:{opacity:1,y:0},viewport:{once:true,amount:.15},transition:{duration:.65,ease:[.2,.7,.2,1]}};
+const fade={initial:{opacity:0,y:22},whileInView:{opacity:1,y:0},viewport:{once:true,amount:.15},transition:{duration:.65,ease:[.2,.7,.2,1] as const}};
 const go=(path:string)=>{window.history.pushState({}, "", path);window.dispatchEvent(new PopStateEvent("popstate"))};
 
 function Nav({open,setOpen}:{open:boolean;setOpen:(v:boolean)=>void}){
