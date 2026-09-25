@@ -1,9 +1,6 @@
 {
-  "name": "northline-development",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {"dev":"vite","build":"tsc -b && vite build","preview":"vite preview"},
-  "dependencies": {"@vitejs/plugin-react":"latest","vite":"latest","typescript":"latest","react":"latest","react-dom":"latest","lucide-react":"latest","framer-motion":"latest"},
-  "devDependencies": {}
+  "name":"northline-development","private":true,"version":"0.2.0","type":"module",
+  "scripts":{"dev":"vite","build":"tsc -b && vite build","preview":"vite preview"},
+  "dependencies":{"@vercel/node":"latest","@vitejs/plugin-react":"latest","vite":"latest","typescript":"latest","react":"latest","react-dom":"latest","lucide-react":"latest","framer-motion":"latest","stripe":"latest"},
+  "devDependencies":{}
 }
