@@ -45,10 +45,19 @@ const nextViewing=(p?:Property)=>{
 const parseBudget=(text:string)=>{
   const match=text.match(/\$?\s*(\d+(?:[.,]\d+)?)\s*(m|million|mln|k|thousand)?/i);
   if(!match)return null;
-  const value=Number(match[1].replace(",",".")),unit=(match[2]||"").toLowerCase();
+  const raw=match[1],unit=(match[2]||"").toLowerCase();
+  let value:number;
+  if(raw.includes(",")&&raw.includes("."))value=Number(raw.replace(/,/g,""));
+  else if(raw.includes(",")&&unit){
+    const tail=raw.split(",")[1]||"";
+    value=tail.length<=2?Number(raw.replace(",", ".")):Number(raw.replace(/,/g,""));
+  }else{
+    value=Number(raw.replace(/,/g,""));
+  }
+  if(!Number.isFinite(value))return null;
   if(unit==="m"||unit==="million"||unit==="mln")return value*1_000_000;
   if(unit==="k"||unit==="thousand")return value*1_000;
-  return null;
+  return value>100000?value:null;
 };
 
 const nav=[["/","Home"],["/properties","Properties"],["/projects","Projects"],["/about","About"],["/contact","Contact"]] as const;
