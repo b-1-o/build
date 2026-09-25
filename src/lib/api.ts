@@ -21,7 +21,7 @@ export async function sendInquiry(payload:Record<string,string>){
 }
 
 export async function createCheckoutSession(propertyId:string,bookingDate:string,bookingTime:string){
-  if(STATIC_DEMO)return{demo:true,demo:`${BASE}/checkout/demo?propertyId=${encodeURIComponent(propertyId)}&date=${encodeURIComponent(bookingDate)}&time=${encodeURIComponent(bookingTime)}`.replace(BASE+"", "")};
+  if(STATIC_DEMO)return{demo:true,demoPath:`/checkout/demo?propertyId=${encodeURIComponent(propertyId)}&date=${encodeURIComponent(bookingDate)}&time=${encodeURIComponent(bookingTime)}`};
   const r=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({propertyId,bookingDate,bookingTime})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(data.error||"Checkout is not configured");
