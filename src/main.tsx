@@ -423,12 +423,6 @@ function StatusPage({cancel=false,demo=false}:{cancel?:boolean;demo?:boolean}){
   return <div className="statusPage"><p className="eyebrow dark">NORTHLINE / CHECKOUT</p><div className="statusIcon">{cancel?"×":"✓"}</div><h1>{cancel?"Checkout cancelled":demo?"Demo checkout complete":"Viewing confirmed"}</h1>{loading?<p>Verifying your Stripe payment…</p>:error?<p>{error}</p>:cancel?<p>No payment was made and the selected viewing was not confirmed.</p>:demo?<p>This GitHub Pages preview simulates the complete checkout presentation. No real card charge is made here.</p>:<><p>{realPayment?"Your viewing deposit was paid successfully.":"The checkout session was created successfully."}</p><div className="receiptCard"><div><span>Residence</span><strong>{info?.propertyName||p?.name||"Northline residence"}</strong></div><div><span>Viewing</span><strong>{info?.bookingDate||"—"} · {info?.bookingTime||"—"}</strong></div><div><span>Customer</span><strong>{info?.customer_name||"Guest"}{info?.customer_email?<> · {info.customer_email}</>:null}</strong></div><div><span>Total</span><strong>{amount}</strong></div><div><span>Payment status</span><strong>{realPayment?"PAID":"PENDING"}</strong></div></div></>}<LinkButton to={p?"/property/"+p.slug:"/properties"} className="solid">Return to Northline <ArrowUpRight size={16}/></LinkButton></div>
 }
 
-function DemoCheckout(){
-  const qs=new URLSearchParams(location.search),p=properties.find(x=>x.id===qs.get("propertyId")),date=qs.get("date")||"",time=qs.get("time")||"";
-  if(!p)return <StatusPage cancel/>;
-  return <div className="checkoutPage"><div className="checkoutShell"><div className="checkoutBrand"><span>NORTHLINE</span><small>SECURE CHECKOUT · DEMO</small></div><div className="checkoutGrid"><div className="orderSummary"><p className="eyebrow dark">ORDER SUMMARY</p><h1>Private viewing</h1><div className="summaryImage"><img src={p.image} alt={p.name}/></div><h2>{p.name}</h2><p>{p.location}</p><div className="summaryRows"><span><b>Date</b>{date}</span><span><b>Time</b>{time}</span><span><b>Deposit</b>$50.00 USD</span></div></div><div className="demoCheckout"><p className="eyebrow dark">PAYMENT DETAILS</p><div className="demoFields"><label>Card number<input value="4242 4242 4242 4242" readOnly/></label><div><label>Expiry<input value="12 / 34" readOnly/></label><label>CVC<input value="123" readOnly/></label></div><label>Cardholder name<input placeholder="Demo Customer"/></label></div><div className="checkoutTotal"><span>Total</span><strong>$50.00</strong></div><button className="solid full" onClick={()=>go("/checkout/success?demo=1")}>Pay $50.00 <ShieldCheck size={15}/></button><p className="secureNote"><ShieldCheck size={14}/> Demo only on GitHub Pages. Real test payments use Stripe Checkout after Vercel deployment.</p></div></div></div></div>
-}
-
 function AppRouter(){
   const[path,setPath]=useState(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/"),[items,setItems]=useState<Property[]>(properties);
   useEffect(()=>{const h=()=>setPath(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/");addEventListener("popstate",h);return()=>removeEventListener("popstate",h)},[]);
@@ -441,7 +435,6 @@ function AppRouter(){
   else if(path==="/contact")page=<ContactPage items={items}/>;
   else if(path==="/checkout/success")page=<StatusPage demo={new URLSearchParams(location.search).get("demo")==="1"}/>;
   else if(path==="/checkout/cancel")page=<StatusPage cancel/>;
-  else if(path==="/checkout/demo")page=<DemoCheckout/>;
   else if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);page=p?<PropertyPage p={p}/>:<StatusPage cancel/>}
   else page=<StatusPage cancel/>;
   const shell=path.startsWith("/checkout")||path.startsWith("/property/")||path==="/checkout/cancel";
