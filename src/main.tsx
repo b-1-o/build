@@ -161,8 +161,9 @@ function Assistant({items}:{items:Property[]}){
     const cityAliases=[["la","Los Angeles"],["los angeles","Los Angeles"],["sf","San Francisco"],["san francisco","San Francisco"],["malibu","Malibu"],["palm springs","Palm Springs"],["west hollywood","West Hollywood"],["laguna beach","Laguna Beach"],["san diego","San Diego"],["la jolla","La Jolla"],["oakland","Oakland"]];
     const city=cityAliases.find(([alias])=>q.includes(alias))?.[1]||profile.city;
     const type:AssistantProfile["type"]=/(apartment|квартир)/i.test(text)?"apartment":/(house|home|дом|коттедж)/i.test(text)?"house":profile.type;
-    const bedMatch=text.match(/(\d+)\s*(bed|beds|bedroom|bedrooms|спаль)/i);
-    const minBedrooms=bedMatch?Number(bedMatch[1]):profile.minBedrooms;
+    const bedMatch=text.match(/(\\d+)\\s*(bed|beds|bedroom|bedrooms|спаль)/i);
+    const numericBedrooms=numericOnly&&parsed!==null&&parsed>=1&&parsed<=10&&profile.minBedrooms===null&&(profile.budgetMax!==null||profile.monthlyMax!==null);
+    const minBedrooms=bedMatch?Number(bedMatch[1]):numericBedrooms?Number(parsed):profile.minBedrooms;
 
     let budgetMax=profile.budgetMax;
     let monthlyMax=profile.monthlyMax;
