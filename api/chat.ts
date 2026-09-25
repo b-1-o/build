@@ -77,6 +77,13 @@ const responseSchema={
 };
 
 export default async function handler(req:VercelRequest,res:VercelResponse){
+  const origin=req.headers.origin||"";
+  const allowedOrigin=origin==="https://b-1-o.github.io"||origin.endsWith(".vercel.app")?origin:"https://b-1-o.github.io";
+  res.setHeader("Access-Control-Allow-Origin",allowedOrigin);
+  res.setHeader("Vary","Origin");
+  res.setHeader("Access-Control-Allow-Headers","Content-Type");
+  res.setHeader("Access-Control-Allow-Methods","POST, OPTIONS");
+  if(req.method==="OPTIONS")return res.status(204).end();
   if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
   if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:"AI assistant is not configured. Add OPENAI_API_KEY in Vercel."});
 
