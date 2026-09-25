@@ -69,9 +69,11 @@ export async function sendAssistantMessage(payload:{
   profile:AssistantProfile;
   now:string;
 }):Promise<AssistantResponse>{
-  if(STATIC_DEMO)return{ok:false,fallback:true};
+  const remote=import.meta.env.VITE_AI_API_URL?.trim();
+  if(STATIC_DEMO&&!remote)return{ok:false,fallback:true};
   try{
-    const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const endpoint=remote?remote.replace(/\/$/,"")+"/api/chat":"/api/chat";
+    const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const data=await r.json().catch(()=>({}));
     if(!r.ok)return{ok:false,fallback:true};
     return data;
