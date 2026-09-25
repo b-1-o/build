@@ -35,11 +35,40 @@ export async function getCheckoutSession(sessionId:string){
   return data;
 }
 
+export type AssistantProfile={
+  budgetMax:number|null;
+  monthlyMax:number|null;
+  city:string|null;
+  type:"house"|"apartment"|"any"|null;
+  minBedrooms:number|null;
+  purpose:"buy"|"compare"|"view"|"explore"|null;
+  features:string[];
+  timeline:string|null;
+};
+
+export type AssistantResponse={
+  ok:boolean;
+  message?:string;
+  question?:string|null;
+  action?:"none"|"open_property"|"browse_properties"|"open_viewing";
+  navigateTo?:string|null;
+  propertySlugs?:string[];
+  profile?:AssistantProfile;
+  mortgage?:{
+    homePrice:number|null;
+    downPercent:number|null;
+    rate:number|null;
+    years:number|null;
+    monthly:number|null;
+  };
+  fallback?:boolean;
+};
+
 export async function sendAssistantMessage(payload:{
   messages:{role:"user"|"assistant";content:string}[];
-  properties:Property[];
+  profile:AssistantProfile;
   now:string;
-}):Promise<{ok:boolean;reply?:string;fallback?:boolean}>{
+}):Promise<AssistantResponse>{
   if(STATIC_DEMO)return{ok:false,fallback:true};
   try{
     const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
