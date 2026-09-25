@@ -2,9 +2,19 @@ import type{VercelRequest,VercelResponse}from"@vercel/node";
 import Stripe from"stripe";
 import{properties}from"../src/data/properties";
 
-const origin=(req:VercelRequest)=>process.env.SITE_URL||`${req.headers["x-forwarded-proto"]||"https"}://${req.headers.host}`;
+const SITE_URL=process.env.SITE_URL||"https://b-1-o.github.io/build";
+const setCors=(req:VercelRequest,res:VercelResponse)=>{
+  const requestOrigin=typeof req.headers.origin==="string"?req.headers.origin:"";
+  const allowed=requestOrigin==="https://b-1-o.github.io"||requestOrigin.includes(".vercel.app")?requestOrigin:"https://b-1-o.github.io";
+  res.setHeader("Access-Control-Allow-Origin",allowed);
+  res.setHeader("Vary","Origin");
+  res.setHeader("Access-Control-Allow-Headers","Content-Type");
+  res.setHeader("Access-Control-Allow-Methods","POST, OPTIONS");
+};
 
 export default async function handler(req:VercelRequest,res:VercelResponse){
+  setCors(req,res);
+  if(req.method==="OPTIONS")return res.status(204).end();
   if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
   const{propertyId,bookingDate,bookingTime}=req.body||{};
   const property=properties.find(p=>p.id===propertyId);
@@ -14,7 +24,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   if(!process.env.STRIPE_SECRET_KEY)return res.status(503).json({error:"Stripe is not configured. Add STRIPE_SECRET_KEY in Vercel."});
   try{
     const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
-    const base=origin(req);
+    const base=SITE_URL.replace(/\/$/,"");
     const session=await stripe.checkout.sessions.create({
       mode:"payment",
       customer_creation:"always",
