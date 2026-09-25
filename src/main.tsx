@@ -3,7 +3,7 @@ import{createRoot}from"react-dom/client";
 import{AnimatePresence,motion}from"framer-motion";
 import{ArrowLeft,ArrowUpRight,Menu,X,MapPin,BedDouble,Bath,Maximize,Search,Check,ChevronDown,CalendarDays,Clock,ShieldCheck,Mail,MessageCircle,Building2,Home as HomeIcon,Layers3}from"lucide-react";
 import{properties,projects,Property}from"./data/properties";
-import{createCheckoutSession,getCheckoutSession,getProperties,sendInquiry,sendAssistantMessage}from"./lib/api";
+import{createCheckoutSession,getCheckoutSession,getProperties,sendInquiry,sendAssistantMessage,AssistantProfile}from"./lib/api";
 import"./styles.css";
 
 const BASE=import.meta.env.BASE_URL.replace(/\/$/,"");
@@ -110,86 +110,78 @@ function MapPanel(){
 }
 
 function Assistant({items}:{items:Property[]}){
-  type Msg={id:number;side:"bot"|"user";text:string;properties?:Property[]};
-  const[open,setOpen]=useState(false),[draft,setDraft]=useState(""),[busy,setBusy]=useState(false);
-  const[messages,setMessages]=useState<Msg[]>([{id:1,side:"bot",text:"Hi — I’m the Northline AI concierge. Ask me about homes, prices, mortgage estimates, locations, features or the nearest viewing."}]);
+  type Msg={id:number;side:"bot"|"user";text:string;propertySlugs?:string[];mortgage?:{homePrice:number|null;downPercent:number|null;rate:number|null;years:number|null;monthly:number|null}};
+  const emptyProfile:AssistantProfile={budgetMax:null,monthlyMax:null,city:null,type:null,minBedrooms:null,purpose:null,features:[],timeline:null};
+  const[open,setOpen]=useState(false),[draft,setDraft]=useState(""),[busy,setBusy]=useState(false),[profile,setProfile]=useState<AssistantProfile>(emptyProfile);
+  const[messages,setMessages]=useState<Msg[]>([
+    {id:1,side:"bot",text:"Welcome to Northline. I can help you find the right residence, but I’ll narrow it down with you rather than throwing a catalog at you. Are you looking to buy, compare a few options, or just explore?"}
+  ]);
   const[messageId,setMessageId]=useState(2);
 
-  const addMessage=(side:"bot"|"user",text:string,properties?:Property[])=>{
-    setMessages(prev=>[...prev,{id:messageId,side,text,properties}]);
+  const bySlugs=(slugs:string[]|undefined)=>items.filter(p=>slugs?.includes(p.slug));
+  const moneyOrDash=(n:number|null|undefined)=>typeof n==="number"?money(n):"—";
+
+  const addUser=(text:string)=>{
+    setMessages(prev=>[...prev,{id:messageId,side:"user",text}]);
+    setMessageId(v=>v+1);
+  };
+  const addBot=(text:string,propertySlugs?:string[],mortgage?:Msg["mortgage"])=>{
+    setMessages(prev=>[...prev,{id:messageId,side:"bot",text,propertySlugs,mortgage}]);
     setMessageId(v=>v+1);
   };
 
-  const nextFor=items.map(p=>({id:p.id,name:p.name,next:nextViewing(p)}));
+  const localFallback=(text:string)=>{
+    const q=normalizeText(text);
+    const purpose:AssistantProfile["purpose"]=/(куп|buy|покуп)/i.test(text)?"buy":/(срав|compare)/i.test(text)?"compare":/(исслед|explor|посмотр|browse)/i.test(text)?"explore":profile.purpose;
+    const monthly=/\b(per month|monthly|a month|в месяц|месяц)\b/i.test(text);
+    const parsed=parseBudget(text);
 
-  const findPropertiesInReply=(reply:string)=>{
-    const q=normalizeText(reply);
-    return items.filter(p=>q.includes(normalizeText(p.name))).slice(0,4);
-  };
+    if(purpose!==profile.purpose)setProfile(p=>({...p,purpose}));
+    if(monthly&&parsed)setProfile(p=>({...p,monthlyMax:parsed,budgetMax:null}));
+    if(!monthly&&parsed&&parsed>100000)setProfile(p=>({...p,budgetMax:parsed}));
 
-  const localReply=(raw:string):{text:string;properties?:Property[]}=>{
-    const text=raw.trim(),q=normalizeText(text);
-    const scored=items.map(p=>{
-      const hay=normalizeText(p.name+" "+p.city+" "+p.type+" "+p.features.join(" ")+" "+p.location);
-      const tokens=q.split(" ").filter(Boolean);
-      const score=tokens.reduce((n,t)=>n+(t.length>2&&hay.includes(t)?1:0),0)+(q.includes(normalizeText(p.name))?5:0)+(q.includes(p.city.toLowerCase())?2:0);
-      return{p,score};
-    }).sort((a,b)=>b.score-a.score);
-    const best=scored.filter(x=>x.score>0).map(x=>x.p);
-    const target=best[0];
-    const budget=parseBudget(text);
-    const wantsPayment=/(ипотек|платеж|месяч|monthly|mortgage|payment|down payment|первонач)/i.test(text);
-    const wantsDate=/(свобод|визит|просмотр|посмотр|дата|когда|availability|available|viewing|visit)/i.test(text);
-    const wantsList=/(покаж|покажи|найд|ищу|подбер|дом|дома|квартир|residence|house|houses|apartment|apartments|show|find|best)/i.test(text);
-    const type=q.includes("квартир")||q.includes("apartment")?"apartment":q.includes("дом")||q.includes("house")?"house":null;
+    if(!purpose)return"Are you buying a home, comparing a few residences, or just exploring?";
+    if(!profile.budgetMax&&!profile.monthlyMax&&!parsed)return"What budget are you comfortable with — total purchase price or a monthly payment target?";
+    if(!profile.city&&!(q.includes("los angeles")||q.includes("san francisco")||q.includes("malibu")||q.includes("palm springs")||q.includes("west hollywood")||q.includes("laguna")||q.includes("san diego")||q.includes("la jolla")||q.includes("oakland")))return"Which area should I prioritize: Los Angeles, coastal California, or are you open to any city?";
+    if(!profile.type&&!/(house|home|дом|квартир|apartment)/i.test(text))return"Do you prefer a private house, an apartment, or either?";
+    if(!profile.minBedrooms&&!/(\d+)\s*(bed|beds|bedroom|спаль)/i.test(text))return"How many bedrooms do you need at minimum?";
 
-    if(wantsPayment){
-      const pool=items.filter(p=>p.status==="available"&&(type===null||p.type===type)&&(budget===null||p.price<=budget));
-      const p=target?.status==="available"?target:pool[0];
-      if(!p)return{text:"I couldn't find an available residence that matches that budget. Try another price range or ask me to show available homes."};
-      return{text:`For ${p.name} at ${money(p.price)}, 20% down at 6.25% over 30 years is about ${money(Math.round(monthlyPayment(p.price)))} / month for principal and interest. Taxes, insurance and HOA are excluded.`,properties:[p]};
-    }
-
-    if(wantsDate){
-      const p=target?.status==="available"?target:items.find(x=>x.status==="available");
-      if(!p)return{text:"There are no residences currently marked available."};
-      const n=nextViewing(p);
-      return{text:n?`${p.name} is available. The nearest demo viewing slot is ${n.label} at ${n.time}. Open the residence to continue to booking.`:`${p.name} is available, but no demo viewing slot is currently open.`,properties:[p]};
-    }
-
-    if(wantsList){
-      let pool=items.filter(p=>p.status==="available"&&(type===null||p.type===type)&&(budget===null||p.price<=budget));
-      if(q.includes("cheapest")||q.includes("дешев"))pool=pool.sort((a,b)=>a.price-b.price);
-      if(q.includes("largest")||q.includes("больш"))pool=pool.sort((a,b)=>b.area-a.area);
-      if(!pool.length)return{text:"I couldn't find an available residence matching those filters. Try another budget, city or property type."};
-      return{text:`I found ${pool.length} available residences matching that request. Here are the strongest matches:`,properties:pool.slice(0,4)};
-    }
-
-    if(target){
-      const n=target.status==="available"?nextViewing(target):null;
-      return{text:n?`${target.name} is ${money(target.price)} in ${target.city}, with ${target.bedrooms} beds, ${target.bathrooms} baths and ${target.area.toLocaleString()} sq ft. The nearest demo viewing is ${n.label} at ${n.time}.`:`${target.name} is ${money(target.price)} in ${target.city}, with ${target.bedrooms} beds, ${target.bathrooms} baths and ${target.area.toLocaleString()} sq ft. Status: ${target.status}.`,properties:[target]};
-    }
-
-    return{text:"Tell me what matters to you — for example: “show houses under $1.5M”, “compare the LA homes”, “what is the monthly payment for The Oak Residence?”, or “what is the nearest viewing?”"};
+    const targetBudget=profile.budgetMax||((parsed&&!monthly)?parsed:null);
+    let pool=items.filter(p=>p.status==="available");
+    if(targetBudget)pool=pool.filter(p=>p.price<=targetBudget);
+    if(profile.type)pool=pool.filter(p=>p.type===profile.type);
+    if(profile.minBedrooms)pool=pool.filter(p=>p.bedrooms>=profile.minBedrooms);
+    if(profile.city)pool=pool.filter(p=>p.city.toLowerCase().includes(profile.city.toLowerCase()));
+    if(!pool.length)return"I don't have an available residence that fits all of those constraints. We can widen the area, increase the budget, or relax the bedroom requirement.";
+    addBot(`I found ${pool.length} options that fit what you've told me so far. The strongest matches are below. Tell me which one feels closest, and I’ll take you into the full residence page.`,pool.slice(0,4).map(p=>p.slug));
   };
 
   const ask=async(raw:string)=>{
     const text=raw.trim();
     if(!text||busy)return;
-    const history=[...messages,{id:messageId,side:"user" as const,text}];
-    addMessage("user",text);
+    addUser(text);
     setBusy(true);
-    const payload={
-      messages:history.slice(-12).map(m=>({role:m.side==="user"?"user" as const:"assistant" as const,content:m.text})),
-      properties:items,
+
+    const history=[...messages,{id:messageId,side:"user" as const,text}];
+    const ai=await sendAssistantMessage({
+      messages:history.slice(-16).map(m=>({role:m.side==="user"?"user" as const:"assistant" as const,content:m.text})),
+      profile,
       now:new Date().toISOString()
-    };
-    const ai=await sendAssistantMessage(payload);
-    if(ai.ok&&ai.reply){
-      addMessage("bot",ai.reply,findPropertiesInReply(ai.reply));
+    });
+
+    if(ai.ok&&ai.message){
+      if(ai.profile)setProfile(ai.profile);
+      addBot(ai.message,ai.propertySlugs,ai.mortgage);
+
+      if(ai.action==="open_property"&&ai.navigateTo){
+        window.setTimeout(()=>{setOpen(false);go(ai.navigateTo!)},450);
+      }else if(ai.action==="browse_properties"&&ai.navigateTo){
+        window.setTimeout(()=>{setOpen(false);go(ai.navigateTo!)},450);
+      }else if(ai.action==="open_viewing"&&ai.navigateTo){
+        window.setTimeout(()=>{setOpen(false);go(ai.navigateTo!);window.setTimeout(()=>document.getElementById("booking")?.scrollIntoView({behavior:"smooth"}),500)},450);
+      }
     }else{
-      const fallback=localReply(text);
-      addMessage("bot",fallback.text,fallback.properties);
+      localFallback(text);
     }
     setBusy(false);
   };
@@ -203,7 +195,7 @@ function Assistant({items}:{items:Property[]}){
 
   const quick=(command:string)=>void ask(command);
 
-  return <><button className="assistantBubble" aria-label="Open Northline AI assistant" onClick={()=>setOpen(v=>!v)}>{open?<X size={18}/>:<MessageCircle size={18}/>}</button>{open&&<motion.aside className="assistantPanel" initial={{opacity:0,y:14,scale:.98}} animate={{opacity:1,y:0,scale:1}}><div className="assistantHead"><div><p className="eyebrow dark">NORTHLINE / AI CONCIERGE</p><h3>Property assistant</h3><span>Natural language · homes · payments · viewings</span></div><button aria-label="Close assistant" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="assistantQuick">{[["View options","show available residences"],["Compare homes","compare available homes in Los Angeles"],["Nearest viewing","what is the nearest viewing?"]].map(([label,command])=><button key={label} disabled={busy} onClick={()=>quick(command)}>{label}</button>)}</div><div className="assistantMessages">{messages.map(m=><div className={m.side==="user"?"assistantMsg user":"assistantMsg"} key={m.id}><p>{m.text}</p>{m.properties&&<div className="assistantProperties">{m.properties.map(p=><button key={p.id} onClick={()=>{setOpen(false);go("/property/"+p.slug)}}><img src={p.image} alt=""/><span><strong>{p.name}</strong><small>{p.city} · {money(p.price)}</small></span><ArrowUpRight size={14}/></button>)}</div>}</div>)}{busy&&<div className="assistantMsg"><p className="assistantTyping">Thinking<span>·</span><span>·</span><span>·</span></p></div>}</div><form className="assistantInput" onSubmit={submit}><input aria-label="Message Northline AI assistant" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Ask anything about the residences…"/><button aria-label="Send message" disabled={!draft.trim()||busy}><ArrowUpRight size={16}/></button></form><p className="assistantNote">AI uses the live Northline catalog on the server. Viewing dates follow the current demo schedule.</p></motion.aside>}</>
+  return <><button className="assistantBubble" aria-label="Open Northline AI assistant" onClick={()=>setOpen(v=>!v)}>{open?<X size={18}/>:<MessageCircle size={18}/>}</button>{open&&<motion.aside className="assistantPanel" initial={{opacity:0,y:14,scale:.98}} animate={{opacity:1,y:0,scale:1}}><div className="assistantHead"><div><p className="eyebrow dark">NORTHLINE / AI CONCIERGE</p><h3>Private property advisor</h3><span>Personalized search · finance · viewings</span></div><button aria-label="Close assistant" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="assistantProfile"><span className={!profile.purpose?"empty":""}>{profile.purpose==="buy"?"BUYING":profile.purpose==="compare"?"COMPARING":profile.purpose==="explore"?"EXPLORING":"YOUR SEARCH"}</span>{profile.budgetMax&&<span>{money(profile.budgetMax)} max</span>}{profile.monthlyMax&&<span>{money(profile.monthlyMax)}/mo</span>}{profile.city&&<span>{profile.city}</span>}{profile.type&&<span>{profile.type}</span>}{profile.minBedrooms&&<span>{profile.minBedrooms}+ beds</span>}</div><div className="assistantQuick">{[["Find my home","I want to buy a home. Start by asking me the right questions."],["I have a monthly budget","I can spend about $7,000 per month. Help me find what fits."],["Just show me options","I’m flexible. Show me a few residences worth considering."]].map(([label,command])=><button key={label} disabled={busy} onClick={()=>quick(command)}>{label}</button>)}</div><div className="assistantMessages">{messages.map(m=>{const cards=bySlugs(m.propertySlugs);return <div className={m.side==="user"?"assistantMsg user":"assistantMsg"} key={m.id}><p>{m.text}</p>{m.mortgage?.monthly&&<div className="assistantCalc"><span>Estimated monthly</span><strong>{moneyOrDash(m.mortgage.monthly)}</strong><small>{m.mortgage.downPercent}% down · {m.mortgage.rate}% · {m.mortgage.years} yrs · P&I only</small></div>}{cards.length>0&&<div className="assistantProperties">{cards.map(p=><button key={p.id} onClick={()=>{setOpen(false);go("/property/"+p.slug)}}><img src={p.image} alt=""/><span><strong>{p.name}</strong><small>{p.city} · {money(p.price)} · {p.bedrooms} beds</small></span><ArrowUpRight size={14}/></button>)}</div>}</div>})}{busy&&<div className="assistantMsg"><p className="assistantTyping">Thinking<span>·</span><span>·</span><span>·</span></p></div>}</div><form className="assistantInput" onSubmit={submit}><input autoFocus={open} aria-label="Message Northline AI assistant" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Tell me what you're looking for…"/><button aria-label="Send message" disabled={!draft.trim()||busy}><ArrowUpRight size={16}/></button></form><p className="assistantNote">I’ll remember your budget, location, home type and bedroom needs as we narrow it down.</p></motion.aside>}</>
 }
 
 function PropertyCarousel({items}:{items:Property[]}){
