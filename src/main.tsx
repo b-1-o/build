@@ -185,8 +185,8 @@ function Assistant({items}:{items:Property[]}){
     if(matched){
       const next=nextViewing(matched);
       addBot(next
-        ? `${matched.name} is currently marked ${matched.status}. The nearest available viewing slot is ${next.label} at ${next.time}.`
-        : `${matched.name} is currently marked ${matched.status}. There is no viewing slot in the current demo schedule.`,
+        ? `${matched.name} is ${money(matched.price)} and currently marked ${matched.status}. The nearest available viewing slot is ${next.label} at ${next.time}.`
+        : `${matched.name} is ${money(matched.price)} and currently marked ${matched.status}. There is no viewing slot in the current demo schedule.`,
         [matched]
       );
       return;
