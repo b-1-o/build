@@ -148,8 +148,8 @@ function Assistant({items}:{items:Property[]}){
     const inferMonthly=numericOnly&&parsed!==null&&parsed<100000&&!profile.budgetMax;
     const monthly=explicitMonthly||inferMonthly;
     const purpose:AssistantProfile["purpose"]=/(куп|buy|покуп)/i.test(text)?"buy":/(срав|compare)/i.test(text)?"compare":/(исслед|explor|browse|просто посмотреть)/i.test(text)?"explore":profile.purpose;
-    const cityNames=["Los Angeles","San Francisco","Malibu","Palm Springs","West Hollywood","Laguna Beach","San Diego","La Jolla","Oakland"];
-    const city=cityNames.find(c=>q.includes(c.toLowerCase()))||profile.city;
+    const cityAliases=[["la","Los Angeles"],["los angeles","Los Angeles"],["sf","San Francisco"],["san francisco","San Francisco"],["malibu","Malibu"],["palm springs","Palm Springs"],["west hollywood","West Hollywood"],["laguna beach","Laguna Beach"],["san diego","San Diego"],["la jolla","La Jolla"],["oakland","Oakland"]];
+    const city=cityAliases.find(([alias])=>q.includes(alias))?.[1]||profile.city;
     const type:AssistantProfile["type"]=/(apartment|квартир)/i.test(text)?"apartment":/(house|home|дом|коттедж)/i.test(text)?"house":profile.type;
     const bedMatch=text.match(/(\d+)\s*(bed|beds|bedroom|bedrooms|спаль)/i);
     const minBedrooms=bedMatch?Number(bedMatch[1]):profile.minBedrooms;
