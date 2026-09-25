@@ -434,7 +434,7 @@ function AppRouter(){
   else if(path==="/projects")page=<ProjectsPage/>;
   else if(path==="/about")page=<AboutPage/>;
   else if(path==="/contact")page=<ContactPage items={items}/>;
-  else if(path==="/viewing/confirmed")page=<ReservationStatusPage demo={new URLSearchParams(location.search).get("demo")==="1"}/>;
+  else if(path==="/viewing/confirmed")page=<ReservationStatusPage/>;
   else if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);page=p?<PropertyPage p={p}/>:<ReservationStatusPage/>}
   else page=<ReservationStatusPage/>;
   const shell=path.startsWith("/viewing/")||path.startsWith("/property/");
