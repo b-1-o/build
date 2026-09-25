@@ -130,7 +130,6 @@ function PropertyCarousel({items}:{items:Property[]}){
         onAnimationComplete={()=>{handleAnimationComplete();if(snap)requestAnimationFrame(()=>setSnap(false))}}
       >
         {loopItems.map((p,i)=>{
-          const originalIndex=i%count;
           return <motion.article className="carouselCard" key={p.id+"-"+i} onClick={()=>go("/property/"+p.slug)} whileHover={{y:-4}}>
             <div className="carouselImage">
               <img src={p.image} loading={i<3?"eager":"lazy"} alt={p.name}/>
