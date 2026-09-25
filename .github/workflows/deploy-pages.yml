@@ -34,8 +34,31 @@ jobs:
         env:
           VITE_AI_API_URL: ${{ secrets.VITE_AI_API_URL }}
 
-      - name: SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Generate SPA route entry points
+        run: |
+          cp dist/index.html dist/404.html
+          routes=(
+            "properties"
+            "projects"
+            "about"
+            "contact"
+            "checkout/success"
+            "checkout/cancel"
+            "property/oak-residence"
+            "property/pacific-heights"
+            "property/north-hills-no-04"
+            "property/canyon-house"
+            "property/mesa-09"
+            "property/studio-12"
+            "property/cliff-residence"
+            "property/park-16"
+            "property/ridge-19"
+            "property/union-22"
+          )
+          for route in "${routes[@]}"; do
+            mkdir -p "dist/$route"
+            cp dist/index.html "dist/$route/index.html"
+          done
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
