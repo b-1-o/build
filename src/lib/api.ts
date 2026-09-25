@@ -1,20 +1,27 @@
 import{properties,Property}from"../data/properties";
+const BASE=import.meta.env.BASE_URL.replace(/\/$/,"");
+const STATIC_DEMO=BASE!=="/";
+const apiPath=(path:string)=>`${BASE}${path}`;
 
 export async function getProperties():Promise<Property[]>{
+  if(STATIC_DEMO)return properties;
   try{
-    const r=await fetch("/api/properties");
+    const r=await fetch(apiPath("/api/properties"));
     if(r.ok)return await r.json();
   }catch{}
   return properties;
 }
 
 export async function sendInquiry(payload:Record<string,string>){
-  const r=await fetch("/api/contact",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  if(!r.ok)throw new Error("Unable to send inquiry");
-  return r.json();
+  if(STATIC_DEMO)return{ok:true,demo:true};
+  const r=await fetch(apiPath("/api/contact"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(data.error||"Unable to send inquiry");
+  return data;
 }
 
 export async function createCheckoutSession(propertyId:string,bookingDate:string,bookingTime:string){
+  if(STATIC_DEMO)return{demo:true,demo:`${BASE}/checkout/demo?propertyId=${encodeURIComponent(propertyId)}&date=${encodeURIComponent(bookingDate)}&time=${encodeURIComponent(bookingTime)}`.replace(BASE+"", "")};
   const r=await fetch("/api/create-checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({propertyId,bookingDate,bookingTime})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(data.error||"Checkout is not configured");
