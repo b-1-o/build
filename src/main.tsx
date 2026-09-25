@@ -152,6 +152,7 @@ function Assistant({items}:{items:Property[]}){
   const localFallback=(text:string)=>{
     type LocalResult={text:string;propertySlugs?:string[];mortgage?:Msg["mortgage"]};
     const q=normalizeText(text);
+    const browseIntent=/show me|show options|find options|flexible|browse|покажи варианты|покажи несколько/i.test(text);
     const parsed=parseBudget(text);
     const explicitMonthly=/\b(per month|monthly|a month|\/mo|в месяц|месяц)\b/i.test(text);
     const numericOnly=/^\s*\$?\s*[\d,]+(?:\.\d+)?\s*(?:m|million|mln|k|thousand)?\s*$/i.test(text);
