@@ -43,21 +43,31 @@ const nextViewing=(p?:Property)=>{
   return null;
 };
 const parseBudget=(text:string)=>{
-  const match=text.match(/\$?\s*(\d+(?:[.,]\d+)?)\s*(m|million|mln|k|thousand)?/i);
-  if(!match)return null;
-  const raw=match[1],unit=(match[2]||"").toLowerCase();
-  let value:number;
-  if(raw.includes(",")&&raw.includes("."))value=Number(raw.replace(/,/g,""));
-  else if(raw.includes(",")&&unit){
-    const tail=raw.split(",")[1]||"";
-    value=tail.length<=2?Number(raw.replace(",", ".")):Number(raw.replace(/,/g,""));
-  }else{
-    value=Number(raw.replace(/,/g,""));
-  }
-  if(!Number.isFinite(value))return null;
-  if(unit==="m"||unit==="million"||unit==="mln")return value*1_000_000;
-  if(unit==="k"||unit==="thousand")return value*1_000;
-  return value>100000?value:null;
+  const matches=[...text.matchAll(/\$?\s*(\d+(?:[.,]\d+)?)\s*(m|million|mln|k|thousand)?/ig)];
+  if(!matches.length)return null;
+  const candidates=matches.map(m=>{
+    const raw=m[1],unit=(m[2]||"").toLowerCase();
+    let value:number;
+    if(raw.includes(",")&&raw.includes("."))value=Number(raw.replace(/,/g,""));
+    else if(raw.includes(",")&&unit){
+      const tail=raw.split(",")[1]||"";
+      value=tail.length<=2?Number(raw.replace(",", ".")):Number(raw.replace(/,/g,""));
+    }else{
+      value=Number(raw.replace(/,/g,""));
+    }
+    if(!Number.isFinite(value))return null;
+    if(unit==="m"||unit==="million"||unit==="mln")value*=1_000_000;
+    else if(unit==="k"||unit==="thousand")value*=1_000;
+    const rawStart=m.index??0;
+    const before=text.slice(Math.max(0,rawStart-2),rawStart);
+    const after=text.slice((m.index??0)+m[0].length,(m.index??0)+m[0].length+16);
+    const currency=/\$/.test(before)||/\$/.test(m[0]);
+    const budgetWord=/(million|mln|thousand|k|m)\b/i.test(m[0])||/(month|monthly|per month|\/mo|year|annual)/i.test(after);
+    return{value,score:(currency?4:0)+(budgetWord?3:0)+(value>=100000?2:0)};
+  }).filter((x):x is {value:number;score:number}=>x!==null);
+  if(!candidates.length)return null;
+  candidates.sort((a,b)=>b.score-a.score||b.value-a.value);
+  return candidates[0].value;
 };
 
 const nav=[["/","Home"],["/properties","Properties"],["/projects","Projects"],["/about","About"],["/contact","Contact"]] as const;
