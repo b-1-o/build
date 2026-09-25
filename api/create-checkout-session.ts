@@ -15,14 +15,20 @@ const setCors=(req:VercelRequest,res:VercelResponse)=>{
 export default async function handler(req:VercelRequest,res:VercelResponse){
   setCors(req,res);
   if(req.method==="OPTIONS")return res.status(204).end();
-  if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
-  const{propertyId,bookingDate,bookingTime}=req.body||{};
+  if(req.method!=="GET"&&req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
+
+  const input=req.method==="GET"?req.query:(req.body||{});
+  const propertyId=typeof input.propertyId==="string"?input.propertyId:"";
+  const bookingDate=typeof input.bookingDate==="string"?input.bookingDate:"";
+  const bookingTime=typeof input.bookingTime==="string"?input.bookingTime:"";
+
   const property=properties.find(p=>p.id===propertyId);
   if(!property)return res.status(404).json({error:"Property not found"});
   if(property.status!=="available")return res.status(409).json({error:"This residence is not currently available"});
   if(!bookingDate||!bookingTime)return res.status(400).json({error:"Select a viewing date and time"});
   if(!process.env.STRIPE_SECRET_KEY)return res.status(503).json({error:"Stripe is not configured. Add STRIPE_SECRET_KEY in Vercel."});
   if(!process.env.STRIPE_SECRET_KEY.startsWith("sk_test_"))return res.status(503).json({error:"Stripe backend is configured for test mode only. Use a Stripe test secret key."});
+
   try{
     const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
     const base=SITE_URL.replace(/\/$/,"");
@@ -53,6 +59,8 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
       },
       submit_type:"pay"
     });
+
+    if(req.method==="GET"&&session.url)return res.redirect(303,session.url);
     return res.status(200).json({url:session.url});
   }catch{
     return res.status(502).json({error:"Stripe could not create the checkout session"});
