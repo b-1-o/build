@@ -78,7 +78,7 @@ function PropertyCarousel({items}:{items:Property[]}){
   const count=items.length;
   const loopItems=[...items,...items,...items];
   const startIndex=count;
-  const[index,setIndex]=useState(startIndex),[cardWidth,setCardWidth]=useState(900),[animating,setAnimating]=useState(false);
+  const[index,setIndex]=useState(startIndex),[cardWidth,setCardWidth]=useState(900),[animating,setAnimating]=useState(false),[snap,setSnap]=useState(false);
   const viewportRef=React.useRef<HTMLDivElement|null>(null);
 
   useEffect(()=>{
@@ -113,8 +113,10 @@ function PropertyCarousel({items}:{items:Property[]}){
   const handleAnimationComplete=()=>{
     setAnimating(false);
     if(index>=count*2){
+      setSnap(true);
       requestAnimationFrame(()=>setIndex(count));
     }else if(index<count){
+      setSnap(true);
       requestAnimationFrame(()=>setIndex(count*2-1));
     }
   };
@@ -124,8 +126,8 @@ function PropertyCarousel({items}:{items:Property[]}){
       <motion.div
         className="carouselTrack"
         animate={{x:-index*(cardWidth+20)}}
-        transition={{type:"spring",stiffness:125,damping:21,mass:.8}}
-        onAnimationComplete={handleAnimationComplete}
+        transition={snap?{duration:0}:{type:"spring",stiffness:125,damping:21,mass:.8}}
+        onAnimationComplete={()=>{handleAnimationComplete();if(snap)requestAnimationFrame(()=>setSnap(false))}}
       >
         {loopItems.map((p,i)=>{
           const originalIndex=i%count;
