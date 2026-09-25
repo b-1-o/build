@@ -149,7 +149,3 @@ When calculating a mortgage, put the chosen home's exact price in mortgage.homeP
     return res.status(502).json({error:"Unable to reach the AI assistant"});
   }
 }
-  }catch{
-    return res.status(502).json({error:"Unable to reach the AI assistant"});
-  }
-}
