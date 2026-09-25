@@ -75,19 +75,86 @@ function Support(){
 }
 
 function PropertyCarousel({items}:{items:Property[]}){
-  const[index,setIndex]=useState(0),[cardWidth,setCardWidth]=useState(900);
-  const total=items.length;
-  useEffect(()=>{const measure=()=>setCardWidth(Math.min(window.innerWidth*(window.innerWidth<=720?.84:.78),940));measure();addEventListener("resize",measure);return()=>removeEventListener("resize",measure)},[]);
-  const move=(delta:number)=>setIndex(i=>(i+delta+total)%total);
+  const count=items.length;
+  const loopItems=[...items,...items,...items];
+  const startIndex=count;
+  const[index,setIndex]=useState(startIndex),[cardWidth,setCardWidth]=useState(900),[animating,setAnimating]=useState(false);
+  const viewportRef=React.useRef<HTMLDivElement|null>(null);
+
+  useEffect(()=>{
+    const measure=()=>setCardWidth(Math.min(window.innerWidth*(window.innerWidth<=720?.84:.78),940));
+    measure();
+    addEventListener("resize",measure);
+    return()=>removeEventListener("resize",measure);
+  },[]);
+
+  const move=(delta:number)=>{
+    if(animating||count<2)return;
+    setAnimating(true);
+    setIndex(i=>i+delta);
+  };
+
+  useEffect(()=>{
+    const el=viewportRef.current;
+    if(!el)return;
+    let wheelLock=false;
+    const onWheel=(event:WheelEvent)=>{
+      if(Math.abs(event.deltaY)<4&&Math.abs(event.deltaX)<4)return;
+      event.preventDefault();
+      if(wheelLock||animating)return;
+      wheelLock=true;
+      move(event.deltaY>0?1:-1);
+      window.setTimeout(()=>{wheelLock=false},520);
+    };
+    el.addEventListener("wheel",onWheel,{passive:false});
+    return()=>el.removeEventListener("wheel",onWheel);
+  },[animating,count]);
+
+  const handleAnimationComplete=()=>{
+    setAnimating(false);
+    if(index>=count*2){
+      requestAnimationFrame(()=>setIndex(count));
+    }else if(index<count){
+      requestAnimationFrame(()=>setIndex(count*2-1));
+    }
+  };
+
   return <div className="catalogCarousel">
-    <div className="carouselViewport">
-      <motion.div className="carouselTrack" animate={{x:-index*(cardWidth+20)}} transition={{type:"spring",stiffness:120,damping:20}}>
-        {items.map((p,i)=><motion.article className="carouselCard" key={p.id} onClick={()=>go("/property/"+p.slug)} whileHover={{y:-4}}>
-          <div className="carouselImage"><img src={p.image} loading={i<2?"eager":"lazy"} alt={p.name}/><div className="carouselShade"/><span>{p.status==="available"?"AVAILABLE":p.status.toUpperCase()}</span><button aria-label={"Open "+p.name} onClick={e=>{e.stopPropagation();go("/property/"+p.slug)}}><ArrowUpRight/></button><div className="carouselContent"><p className="eyebrow">{p.city} · {p.type}</p><h3>{p.name}</h3><strong>{money(p.price)}</strong><div className="carouselSpecs"><span>{p.bedrooms} beds</span><span>{p.bathrooms} baths</span><span>{p.area.toLocaleString()} sq ft</span></div></div></div>
-        </motion.article>)}
+    <div ref={viewportRef} className="carouselViewport" aria-label="Northline residences carousel">
+      <motion.div
+        className="carouselTrack"
+        animate={{x:-index*(cardWidth+20)}}
+        transition={{type:"spring",stiffness:125,damping:21,mass:.8}}
+        onAnimationComplete={handleAnimationComplete}
+      >
+        {loopItems.map((p,i)=>{
+          const originalIndex=i%count;
+          return <motion.article className="carouselCard" key={p.id+"-"+i} onClick={()=>go("/property/"+p.slug)} whileHover={{y:-4}}>
+            <div className="carouselImage">
+              <img src={p.image} loading={i<3?"eager":"lazy"} alt={p.name}/>
+              <div className="carouselShade"/>
+              <span>{p.status==="available"?"AVAILABLE":p.status.toUpperCase()}</span>
+              <button aria-label={"Open "+p.name} onClick={e=>{e.stopPropagation();go("/property/"+p.slug)}}><ArrowUpRight/></button>
+              <div className="carouselContent">
+                <p className="eyebrow">{p.city} · {p.type}</p>
+                <h3>{p.name}</h3>
+                <strong>{money(p.price)}</strong>
+                <div className="carouselSpecs"><span>{p.bedrooms} beds</span><span>{p.bathrooms} baths</span><span>{p.area.toLocaleString()} sq ft</span></div>
+              </div>
+            </div>
+          </motion.article>
+        })}
       </motion.div>
     </div>
-    <div className="carouselControls"><div className="carouselCounter"><strong>{String(index+1).padStart(2,"0")}</strong><span>/ {String(total).padStart(2,"0")}</span></div><div className="carouselButtons"><button onClick={()=>move(-1)} aria-label="Previous residence"><ArrowLeft size={16}/></button><button onClick={()=>move(1)} aria-label="Next residence"><ArrowUpRight size={16}/></button></div><LinkButton to="/properties" className="arrowLink">View all residences <ArrowUpRight size={15}/></LinkButton></div>
+    <div className="carouselControls">
+      <div className="carouselCounter"><strong>{String(index%count+1).padStart(2,"0")}</strong><span>/ {String(count).padStart(2,"0")}</span></div>
+      <div className="carouselButtons">
+        <button disabled={animating} onClick={()=>move(-1)} aria-label="Previous residence"><ArrowLeft size={16}/></button>
+        <button disabled={animating} onClick={()=>move(1)} aria-label="Next residence"><ArrowUpRight size={16}/></button>
+      </div>
+      <span className="carouselHint">SCROLL TO EXPLORE</span>
+      <LinkButton to="/properties" className="arrowLink">View all residences <ArrowUpRight size={15}/></LinkButton>
+    </div>
   </div>
 }
 
