@@ -1,7 +1,17 @@
 import type{VercelRequest,VercelResponse}from"@vercel/node";
 import Stripe from"stripe";
 
+const setCors=(req:VercelRequest,res:VercelResponse)=>{
+  const requestOrigin=typeof req.headers.origin==="string"?req.headers.origin:"";
+  const allowed=requestOrigin==="https://b-1-o.github.io"||requestOrigin.includes(".vercel.app")?requestOrigin:"https://b-1-o.github.io";
+  res.setHeader("Access-Control-Allow-Origin",allowed);
+  res.setHeader("Vary","Origin");
+  res.setHeader("Access-Control-Allow-Headers","Content-Type");
+  res.setHeader("Access-Control-Allow-Methods","GET, OPTIONS");
+};
 export default async function handler(req:VercelRequest,res:VercelResponse){
+  setCors(req,res);
+  if(req.method==="OPTIONS")return res.status(204).end();
   if(req.method!=="GET")return res.status(405).json({error:"Method not allowed"});
   const sessionId=typeof req.query.session_id==="string"?req.query.session_id:"";
   if(!sessionId)return res.status(400).json({error:"session_id is required"});
