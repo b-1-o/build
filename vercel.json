@@ -4,6 +4,12 @@
   "framework":"vite",
   "rewrites":[
     {"source":"/property/:slug","destination":"/"},
-    {"source":"/checkout/:path*","destination":"/"}
+    {"source":"/properties","destination":"/"},
+    {"source":"/projects","destination":"/"},
+    {"source":"/about","destination":"/"},
+    {"source":"/contact","destination":"/"},
+    {"source":"/checkout/demo","destination":"/"},
+    {"source":"/checkout/success","destination":"/"},
+    {"source":"/checkout/cancel","destination":"/"}
   ]
 }
