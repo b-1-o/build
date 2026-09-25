@@ -75,13 +75,14 @@ function Support(){
 }
 
 function PropertyCarousel({items}:{items:Property[]}){
-  const[index,setIndex]=useState(0);
+  const[index,setIndex]=useState(0),[cardWidth,setCardWidth]=useState(900);
   const total=items.length;
+  useEffect(()=>{const measure=()=>setCardWidth(Math.min(window.innerWidth*(window.innerWidth<=720?.84:.78),940));measure();addEventListener("resize",measure);return()=>removeEventListener("resize",measure)},[]);
   const move=(delta:number)=>setIndex(i=>(i+delta+total)%total);
   return <div className="catalogCarousel">
     <div className="carouselViewport">
-      <motion.div className="carouselTrack" animate={{x:`calc(-${index} * (min(78vw, 940px) + 20px))`}} transition={{type:"spring",stiffness:120,damping:20}}>
-        {items.map((p,i)=><motion.article className={i===index?"carouselCard active":"carouselCard"} key={p.id} onClick={()=>go("/property/"+p.slug)} whileHover={{y:-4}}>
+      <motion.div className="carouselTrack" animate={{x:-index*(cardWidth+20)}} transition={{type:"spring",stiffness:120,damping:20}}>
+        {items.map((p,i)=><motion.article className="carouselCard" key={p.id} onClick={()=>go("/property/"+p.slug)} whileHover={{y:-4}}>
           <div className="carouselImage"><img src={p.image} loading={i<2?"eager":"lazy"} alt={p.name}/><div className="carouselShade"/><span>{p.status==="available"?"AVAILABLE":p.status.toUpperCase()}</span><button aria-label={"Open "+p.name} onClick={e=>{e.stopPropagation();go("/property/"+p.slug)}}><ArrowUpRight/></button><div className="carouselContent"><p className="eyebrow">{p.city} · {p.type}</p><h3>{p.name}</h3><strong>{money(p.price)}</strong><div className="carouselSpecs"><span>{p.bedrooms} beds</span><span>{p.bathrooms} baths</span><span>{p.area.toLocaleString()} sq ft</span></div></div></div>
         </motion.article>)}
       </motion.div>
