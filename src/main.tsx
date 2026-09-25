@@ -11,7 +11,8 @@ import"./styles.css";
 
 const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
 const fade={initial:{opacity:0,y:22},whileInView:{opacity:1,y:0},viewport:{once:true,amount:.15},transition:{duration:.65,ease:[.2,.7,.2,1] as const}};
-const go=(path:string)=>{window.history.pushState({}, "", path);window.dispatchEvent(new PopStateEvent("popstate"))};
+const BASE=import.meta.env.BASE_URL.replace(/\/$/,"");
+const go=(path:string)=>{window.history.pushState({}, "", BASE+path);window.dispatchEvent(new PopStateEvent("popstate"))};
 
 function Nav({open,setOpen}:{open:boolean;setOpen:(v:boolean)=>void}){
   const links=[["properties","Properties"],["projects","Projects"],["about","About"],["contact","Contact"]];
@@ -75,8 +76,8 @@ function App(){
 }
 
 function Router(){
-  const[path,setPath]=React.useState(window.location.pathname);
-  React.useEffect(()=>{const h=()=>setPath(window.location.pathname);window.addEventListener("popstate",h);return()=>window.removeEventListener("popstate",h)},[]);
+  const[path,setPath]=React.useState(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/");
+  React.useEffect(()=>{const h=()=>setPath(window.location.pathname.replace(new RegExp("^"+BASE),"")||"/");window.addEventListener("popstate",h);return()=>window.removeEventListener("popstate",h)},[]);
   if(path==="/checkout/success")return <SuccessPage/>;
   if(path==="/checkout/cancel")return <SuccessPage cancel/>;
   if(path.startsWith("/property/")){const slug=decodeURIComponent(path.split("/")[2]||"");const p=properties.find(x=>x.slug===slug);return p?<PropertyPage p={p}/>:<SuccessPage cancel/>}
