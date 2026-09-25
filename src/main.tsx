@@ -2,12 +2,11 @@ import React,{useEffect,useMemo,useState}from"react";
 import{createRoot}from"react-dom/client";
 import{AnimatePresence,motion}from"framer-motion";
 import{ArrowLeft,ArrowUpRight,Menu,X,MapPin,BedDouble,Bath,Maximize,Search,Check,ChevronDown,CalendarDays,Clock,ShieldCheck,Mail,MessageCircle,Building2,Home as HomeIcon,Layers3}from"lucide-react";
-import{properties,projects,Property,Project}from"./data/properties";
+import{properties,projects,Property}from"./data/properties";
 import{createCheckoutSession,getCheckoutSession,getProperties,sendInquiry}from"./lib/api";
 import"./styles.css";
 
 const BASE=import.meta.env.BASE_URL.replace(/\/$/,"");
-const STATIC_DEMO=BASE!=="/";
 const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
 const img=(id:string)=>`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1800&q=88`;
 const go=(path:string)=>{window.history.pushState({}, "", BASE+path);window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo({top:0,behavior:"auto"})};
